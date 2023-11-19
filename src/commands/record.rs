@@ -1,7 +1,6 @@
 use std::path::Path;
 use std::process::exit;
 
-use log::{error, trace};
 use std::sync::mpsc::channel;
 use std::sync::Mutex;
 use std::time::SystemTime;
@@ -17,6 +16,8 @@ use std::{
 use crate::commands::types::LineItem;
 use crate::commands::types::RecordHeader;
 use crate::terminal::{Terminal, WindowsTerminal};
+
+use tracing::{error, trace};
 
 pub struct Record {
     output_writer: Arc<Mutex<Box<dyn Write + Send + Sync>>>,

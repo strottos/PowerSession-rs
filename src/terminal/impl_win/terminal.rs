@@ -1,14 +1,12 @@
+use super::process::start_process;
 use crate::terminal::Terminal;
 
 use std::option::Option;
-
 use std::ptr::null_mut;
 use std::sync::mpsc::{Receiver, Sender};
-
-use super::process::start_process;
-
-use log::trace;
 use std::sync::Arc;
+
+use tracing::trace;
 use windows::core::{Error, Result};
 use windows::Win32::Foundation::{
     CloseHandle, DuplicateHandle, DUPLICATE_SAME_ACCESS, HANDLE, INVALID_HANDLE_VALUE,
