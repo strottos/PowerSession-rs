@@ -2,12 +2,11 @@ use super::process::start_process;
 use crate::terminal::Terminal;
 
 use std::option::Option;
-use std::ptr::null_mut;
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Arc;
 
 use tracing::trace;
-use windows::core::{Error, Result};
+use windows::core::{Error, Result, HSTRING};
 use windows::Win32::Foundation::{
     CloseHandle, DuplicateHandle, DUPLICATE_SAME_ACCESS, HANDLE, INVALID_HANDLE_VALUE,
 };
@@ -23,9 +22,8 @@ use windows::Win32::System::Console::{
 };
 use windows::Win32::System::Pipes::CreatePipe;
 use windows::Win32::System::Threading::{
-    GetCurrentProcess, GetExitCodeProcess, WaitForSingleObject,
+    GetCurrentProcess, GetExitCodeProcess, WaitForSingleObject, INFINITE,
 };
-use windows::Win32::System::WindowsProgramming::INFINITE;
 
 pub struct WindowsTerminal {
     handle: HPCON,
@@ -71,8 +69,8 @@ impl WindowsTerminal {
         let mut h_pipe_pty_out = INVALID_HANDLE_VALUE;
 
         unsafe {
-            CreatePipe(&mut h_pipe_pty_in, stdin, null_mut(), 0).ok()?;
-            CreatePipe(stdout, &mut h_pipe_pty_out, null_mut(), 0).ok()?;
+            CreatePipe(&mut h_pipe_pty_in, stdin, None, 0).ok()?;
+            CreatePipe(stdout, &mut h_pipe_pty_out, None, 0).ok()?;
         }
 
         let mut console_size = COORD::default();
@@ -118,10 +116,10 @@ impl WindowsTerminal {
     unsafe fn set_raw_mode_on_stdin() -> Result<()> {
         let mut console_mode = CONSOLE_MODE::default();
         let handle = CreateFileW(
-            "CONIN$",
-            FILE_GENERIC_READ | FILE_GENERIC_WRITE,
+            &HSTRING::from("CONIN$"),
+            (FILE_GENERIC_READ | FILE_GENERIC_WRITE).0,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
-            std::ptr::null_mut(),
+            None,
             OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL,
             HANDLE::default(),
@@ -144,10 +142,10 @@ impl WindowsTerminal {
     unsafe fn set_raw_mode_on_stdout() -> Result<()> {
         let mut console_mode = CONSOLE_MODE::default();
         let handle = CreateFileW(
-            "CONOUT$",
-            FILE_GENERIC_READ | FILE_GENERIC_WRITE,
+            &HSTRING::from("CONOUT$"),
+            (FILE_GENERIC_READ | FILE_GENERIC_WRITE).0,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
-            std::ptr::null_mut(),
+            None,
             OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL,
             HANDLE::default(),
@@ -166,10 +164,10 @@ impl WindowsTerminal {
 
     unsafe fn get_console_size() -> Result<(i16, i16)> {
         let h_console = CreateFileW(
-            "CONOUT$",
-            FILE_GENERIC_READ | FILE_GENERIC_WRITE,
+            &HSTRING::from("CONOUT$"),
+            (FILE_GENERIC_READ | FILE_GENERIC_WRITE).0,
             FILE_SHARE_READ | FILE_SHARE_WRITE,
-            std::ptr::null_mut(),
+            None,
             OPEN_EXISTING,
             FILE_ATTRIBUTE_NORMAL,
             HANDLE::default(),
@@ -215,10 +213,10 @@ impl Terminal for WindowsTerminal {
         let stdin = WindowsTerminal::clone_handle(self.stdin).unwrap();
 
         std::thread::spawn(move || loop {
-            let (buf, n) = rx.recv().unwrap();
+            let (buf, _) = rx.recv().unwrap();
 
             unsafe {
-                if !WriteFile(stdin, buf.as_ptr() as _, n as _, &mut 0, null_mut()).as_bool() {
+                if !WriteFile(stdin, Some(&buf), Some(&mut 0), None).as_bool() {
                     break;
                 }
             }
@@ -235,7 +233,14 @@ impl Terminal for WindowsTerminal {
             let mut buf = [0; 1024];
             let mut n_read = 0;
             unsafe {
-                if !ReadFile(stdout, buf.as_mut_ptr() as _, 1024, &mut n_read, null_mut()).as_bool()
+                if !ReadFile(
+                    stdout,
+                    Some(buf.as_mut_ptr() as _),
+                    1024,
+                    Some(&mut n_read),
+                    None,
+                )
+                .as_bool()
                 {
                     // The stdout is closed. send 0 to indicate read end.
                     trace!("read stdout error: {}", Error::from_win32().message());

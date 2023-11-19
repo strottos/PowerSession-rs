@@ -1,5 +1,4 @@
-use std::ptr::null_mut;
-use windows::core::{Error, Result, PCWSTR, PWSTR};
+use windows::core::{Error, Result, HSTRING, PCWSTR, PWSTR};
 use windows::Win32::Foundation::{CloseHandle, BOOL, INVALID_HANDLE_VALUE};
 use windows::Win32::System::Console::HPCON;
 use windows::Win32::System::Threading::{
@@ -75,10 +74,10 @@ unsafe fn configure_process_thread(h_pc: &mut HPCON) -> Result<STARTUPINFOEXW> {
         start_info.lpAttributeList,
         0,
         PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE as usize,
-        h_pc.0 as _,
+        Some(h_pc.0 as _),
         std::mem::size_of_val(h_pc),
-        null_mut(),
-        null_mut(),
+        None,
+        None,
     );
 
     if !success.as_bool() {
@@ -96,7 +95,7 @@ unsafe fn run_process(
     let mut p_info = PROCESS_INFORMATION::default();
 
     let success = CreateProcessW(
-        PCWSTR::default(),
+        PCWSTR::null(),
         PWSTR(
             command
                 .encode_utf16()
@@ -104,12 +103,12 @@ unsafe fn run_process(
                 .collect::<Vec<u16>>()
                 .as_mut_ptr(),
         ),
-        null_mut(),
-        null_mut(),
+        None,
+        None,
         false,
         EXTENDED_STARTUPINFO_PRESENT | CREATE_UNICODE_ENVIRONMENT,
-        null_mut(),
-        working_dir,
+        None,
+        &HSTRING::from(working_dir),
         &mut startup_info.StartupInfo,
         &mut p_info,
     );
